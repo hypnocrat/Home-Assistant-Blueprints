@@ -125,7 +125,6 @@ variables:
   blocking_states: !input blocking_states
   manual_override_helper: !input manual_override_helper
   entity_target: !input entity_target
-  manual_override_reset_time: !input manual_override_reset_time
 
 condition:
   - condition: state
@@ -179,20 +178,18 @@ action:
     target:
       entity_id: !input manual_override_helper
 
-  # Check if the light was manually turned off
+  # Check if the light was manually turned off since the last trigger.
   - choose:
       - conditions:
           - condition: template
             value_template: >
-              {% set ns = namespace(last_context = this.context.id) %}
+              {% set ns = namespace(manually_controlled = false) %}
               {% for target_id in entity_target.entity_id %}
-                {% if states[target_id].last_changed > this.attributes.last_triggered %}
-                  {% if states[target_id].last_context.id != ns.last_context %}
-                    {% set ns.last_context = states[target_id].last_context.id %}
-                  {% endif %}
+                {% if states[target_id].last_changed > this.attributes.last_triggered and states[target_id].last_context.id != this.context.id %}
+                  {% set ns.manually_controlled = true %}
                 {% endif %}
               {% endfor %}
-              {{ ns.last_context != this.context.id }}
+              {{ ns.manually_controlled }}
         sequence:
           # If the context is different, it means the light was changed manually.
           # Turn the override on and stop the automation.
@@ -230,15 +227,13 @@ action:
       - conditions:
           - condition: template
             value_template: >
-              {% set ns = namespace(last_context = this.context.id) %}
+              {% set ns = namespace(manually_controlled = false) %}
               {% for target_id in entity_target.entity_id %}
-                {% if states[target_id].last_changed > this.attributes.last_triggered %}
-                  {% if states[target_id].last_context.id != ns.last_context %}
-                    {% set ns.last_context = states[target_id].last_context.id %}
-                  {% endif %}
+                {% if states[target_id].last_changed > this.attributes.last_triggered and states[target_id].last_context.id != this.context.id %}
+                  {% set ns.manually_controlled = true %}
                 {% endif %}
               {% endfor %}
-              {{ ns.last_context != this.context.id }}
+              {{ ns.manually_controlled }}
         sequence:
           # If the context is different, it means the light was changed manually.
           # Turn the override on and stop the automation.
