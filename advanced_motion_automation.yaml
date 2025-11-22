@@ -25,7 +25,7 @@ blueprint:
     no_motion_wait:
       name: Wait Time
       description: Time to leave the light on after last motion is detected.
-      default: 120
+      default: 60
       selector:
         number:
           min: 0
@@ -66,7 +66,7 @@ blueprint:
     sun_condition:
       name: Sun Condition (Optional)
       description: Select the sun condition to check.
-      default: none
+      default: night
       selector:
         select:
           options:
@@ -76,13 +76,13 @@ blueprint:
     sunrise_offset:
       name: Sunrise Offset (Optional)
       description: Offset from sunrise in format 'HH:MM' (e.g., '01:00' or '-00:30')
-      default: "00:00"
+      default: "01:00"
       selector:
         text:
     sunset_offset:
       name: Sunset Offset (Optional)
       description: Offset from sunset in format 'HH:MM' (e.g., '01:00' or '-00:30')
-      default: "00:00"
+      default: "-01:00"
       selector:
         text:
     blocking_entity:
@@ -104,17 +104,20 @@ blueprint:
       selector:
         entity:
           domain: input_boolean
+    manual_override_reset_time:
+      name: Manual Override Reset Time
+      description: Time to reset the manual override after it has been activated.
+      default: 300
+      selector:
+        number:
+          min: 60
+          max: 3600
+          unit_of_measurement: seconds
 
 mode: restart
 max_exceeded: silent
 
-# The trigger now uses a template to correctly build a list of entity IDs
-# from the target selector, preventing the "area_id" error.
 trigger:
-  - platform: state
-    entity_id: "{{ entity_target.entity_id | list }}"
-    to: "on"
-    id: manual_control_trigger
   - platform: state
     entity_id: !input motion_sensors
     to: "on"
@@ -131,11 +134,9 @@ variables:
   blocking_states: !input blocking_states
   manual_override_helper: !input manual_override_helper
   entity_target: !input entity_target
+  manual_override_reset_time: !input manual_override_reset_time
 
 condition:
-  # This condition block applies to the motion trigger.
-  - condition: trigger
-    id: motion_trigger
   - condition: state
     entity_id: !input manual_override_helper
     state: "off"
@@ -182,48 +183,78 @@ condition:
                 before_offset: !input sunrise_offset
 
 action:
+  # First, turn off the override to ensure automatic control is active.
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input manual_override_helper
+
+  # Check if the light was manually turned off
   - choose:
-      # This block runs if the manual control trigger fired.
-      # It checks if the change was NOT from this automation.
       - conditions:
-          - condition: trigger
-            id: manual_control_trigger
           - condition: template
-            value_template: "{{ trigger.to_state.context.id != this.context.id }}"
+            value_template: >
+              {% set ns = namespace(last_context = this.context.id) %}
+              {% for target_id in entity_target.entity_id %}
+                {% if states[target_id].last_changed > this.attributes.last_triggered %}
+                  {% if states[target_id].last_context.id != ns.last_context %}
+                    {% set ns.last_context = states[target_id].last_context.id %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.last_context != this.context.id }}
         sequence:
+          # If the context is different, it means the light was changed manually.
+          # Turn the override on and stop the automation.
           - service: input_boolean.turn_on
             target:
               entity_id: !input manual_override_helper
-    # This block runs if the motion trigger fired.
+          - stop: "Manual control detected, stopping automation."
     default:
-      - service: input_boolean.turn_off
-        target:
-          entity_id: !input manual_override_helper
+      # Turn on the lights.
       - choose:
           - conditions:
               - condition: template
                 value_template: "{{ use_custom_settings }}"
             sequence:
-              # Turn on lights with custom settings
               - service: light.turn_on
                 target: !input entity_target
                 data:
                   brightness: !input brightness
                   rgb_color: !input color
-              # Turn on switches (they ignore the data block)
               - service: switch.turn_on
                 target: !input entity_target
         default:
-          # Turn on lights/switches with default settings
           - service: light.turn_on
             target: !input entity_target
-      - wait_for_trigger:
-          platform: state
-          entity_id: !input motion_sensors
-          to: "off"
-      - delay: !input no_motion_wait
-      - condition: state
-        entity_id: !input manual_override_helper
-        state: "off"
+
+  # Wait for motion to stop.
+  - wait_for_trigger:
+      platform: state
+      entity_id: !input motion_sensors
+      to: "off"
+  - delay: !input no_motion_wait
+
+  # Before turning off, check if the light was manually controlled during the wait period.
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {% set ns = namespace(last_context = this.context.id) %}
+              {% for target_id in entity_target.entity_id %}
+                {% if states[target_id].last_changed > this.attributes.last_triggered %}
+                  {% if states[target_id].last_context.id != ns.last_context %}
+                    {% set ns.last_context = states[target_id].last_context.id %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.last_context != this.context.id }}
+        sequence:
+          # If the context is different, it means the light was changed manually.
+          # Turn the override on and stop the automation.
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input manual_override_helper
+          - stop: "Manual control detected, stopping automation."
+    default:
       - service: light.turn_off
         target: !input entity_target
