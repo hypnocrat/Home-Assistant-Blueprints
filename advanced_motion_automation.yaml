@@ -1,6 +1,6 @@
 blueprint:
-  name: Motion-activated Light with Conditions, Exceptions, Optional Settings, and Sun Offset
-  description: Turn on lights when motion is detected, with optional brightness and color settings, conditional entity state check, and sun position check with offset.
+  name: Motion-activated Light with Automatic Manual Override
+  description: Turn on lights when motion is detected. If the light is controlled manually, a manual override is automatically enabled to prevent the automation from interfering. Includes separate sunrise/sunset offsets and other conditions.
   domain: automation
   input:
     motion_sensors:
@@ -73,9 +73,15 @@ blueprint:
             - none
             - day
             - night
-    sun_offset:
-      name: Sun Offset (Optional)
-      description: Offset from sunrise/sunset in format 'HH:MM' (e.g., '01:00' or '-01:00')
+    sunrise_offset:
+      name: Sunrise Offset (Optional)
+      description: Offset from sunrise in format 'HH:MM' (e.g., '01:00' or '-00:30')
+      default: "00:00"
+      selector:
+        text:
+    sunset_offset:
+      name: Sunset Offset (Optional)
+      description: Offset from sunset in format 'HH:MM' (e.g., '01:00' or '-00:30')
       default: "00:00"
       selector:
         text:
@@ -91,6 +97,13 @@ blueprint:
       default:
       selector:
         text:
+    manual_override_helper:
+      name: Manual Override Helper
+      description: Select an input_boolean helper. This will be automatically turned on when the light is controlled manually to disable automation control.
+      default:
+      selector:
+        entity:
+          domain: input_boolean
 
 mode: restart
 max_exceeded: silent
@@ -99,113 +112,114 @@ trigger:
   - platform: state
     entity_id: !input motion_sensors
     to: "on"
+    id: motion_trigger
+  - platform: state
+    entity_id: !input entity_target
+    id: manual_control_trigger
+    not_from:
+      - "unknown"
+      - "unavailable"
 
 variables:
   use_custom_settings: !input use_custom_settings
   condition_entity: !input condition_entity
   condition_states: !input condition_states
   sun_condition: !input sun_condition
-  sun_offset: !input sun_offset
+  sunrise_offset: !input sunrise_offset
+  sunset_offset: !input sunset_offset
   blocking_entity: !input blocking_entity
   blocking_states: !input blocking_states
+  manual_override_helper: !input manual_override_helper
   entity_target: !input entity_target
 
 condition:
-  - condition: and
+  - condition: trigger
+    id: motion_trigger
+  - condition: state
+    entity_id: !input manual_override_helper
+    state: "off"
+  - condition: or
     conditions:
-      - condition: or
+      - condition: template
+        value_template: "{{ blocking_entity == None or blocking_entity == '' }}"
+      - condition: template
+        value_template: >
+          {% set blocking_states_list = blocking_states.split(',') | map('trim') | list %}
+          {{ states(blocking_entity) not in blocking_states_list }}
+  - condition: or
+    conditions:
+      - condition: template
+        value_template: "{{ condition_entity == None or condition_entity == '' }}"
+      - condition: template
+        value_template: >
+          {% set states_list = condition_states.split(',') | map('trim') | list %}
+          {{ condition_entity != None and condition_entity != '' and states_list | length > 0 and states(condition_entity) in states_list }}
+  - condition: or
+    conditions:
+      - condition: template
+        value_template: "{{ sun_condition == 'none' }}"
+      - condition: and
         conditions:
           - condition: template
-            value_template: "{{ blocking_entity == None or blocking_entity == '' }}"
-          - condition: template
-            value_template: >
-              {% set blocking_states_list = blocking_states.split(',') | map('trim') | list %}
-              {{ states(blocking_entity) not in blocking_states_list }}
-      - condition: or
+            value_template: "{{ sun_condition == 'day' }}"
+          - condition: sun
+            after: sunrise
+            after_offset: !input sunrise_offset
+            before: sunset
+            before_offset: !input sunset_offset
+      - condition: and
         conditions:
           - condition: template
-            value_template: "{{ condition_entity == None or condition_entity == '' }}"
-          - condition: template
-            value_template: >
-              {% set states_list = condition_states.split(',') | map('trim') | list %}
-              {{ condition_entity != None and condition_entity != '' and states_list | length > 0 and states(condition_entity) in states_list }}
-      - condition: or
-        conditions:
-          - condition: template
-            value_template: "{{ sun_condition == 'none' }}"
-          - condition: and
+            value_template: "{{ sun_condition == 'night' }}"
+          - condition: or
             conditions:
-              - condition: template
-                value_template: "{{ sun_condition == 'day' }}"
               - condition: sun
-                after: sunrise
-                after_offset: !input sun_offset
-                before: sunset
-                before_offset: !input sun_offset
-          - condition: and
-            conditions:
-              - condition: template
-                value_template: "{{ sun_condition == 'night' }}"
-              - condition: or
-                conditions:
-                  - condition: sun
-                    after: sunset
-                    after_offset: !input sun_offset
-                  - condition: sun
-                    before: sunrise
-                    before_offset: !input sun_offset
+                after: sunset
+                after_offset: !input sunset_offset
+              - condition: sun
+                before: sunrise
+                before_offset: !input sunrise_offset
 
 action:
   - choose:
       - conditions:
+          - condition: trigger
+            id: manual_control_trigger
           - condition: template
-            value_template: "{{ use_custom_settings }}"
+            value_template: "{{ trigger.to_state.context.id != this.context.id }}"
         sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ 'light.' in entity_target.entity_id|string }}"
-                sequence:
-                  - service: light.turn_on
-                    target: !input entity_target
-                    data:
-                      brightness: !input brightness
-                      rgb_color: !input color
-              - conditions:
-                  - condition: template
-                    value_template: "{{ 'switch.' in entity_target.entity_id|string }}"
-                sequence:
-                  - service: switch.turn_on
-                    target: !input entity_target
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input manual_override_helper
     default:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: !input manual_override_helper
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ 'light.' in entity_target.entity_id|string }}"
+                value_template: "{{ use_custom_settings }}"
             sequence:
               - service: light.turn_on
                 target: !input entity_target
-          - conditions:
+                data:
+                  brightness: !input brightness
+                  rgb_color: !input color
+              # This block handles switches when custom settings are used
               - condition: template
-                value_template: "{{ 'switch.' in entity_target.entity_id|string }}"
-            sequence:
+                value_template: "{{ 'switch.' in (entity_target.entity_id | first) }}"
               - service: switch.turn_on
                 target: !input entity_target
-  - wait_for_trigger:
-      platform: state
-      entity_id: !input motion_sensors
-      to: "off"
-  - delay: !input no_motion_wait
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ 'light.' in entity_target.entity_id|string }}"
-        sequence:
-          - service: light.turn_off
+        default:
+          - service: light.turn_on
             target: !input entity_target
-      - conditions:
-          - condition: template
-            value_template: "{{ 'switch.' in entity_target.entity_id|string }}"
-        sequence:
-          - service: switch.turn_off
-            target: !input entity_target
+      - wait_for_trigger:
+          platform: state
+          entity_id: !input motion_sensors
+          to: "off"
+      - delay: !input no_motion_wait
+      - condition: state
+        entity_id: !input manual_override_helper
+        state: "off"
+      - service: light.turn_off
+        target: !input entity_target
