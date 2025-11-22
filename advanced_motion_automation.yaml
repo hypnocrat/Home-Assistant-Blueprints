@@ -108,17 +108,17 @@ blueprint:
 mode: restart
 max_exceeded: silent
 
+# The trigger now uses a template to correctly build a list of entity IDs
+# from the target selector, preventing the "area_id" error.
 trigger:
+  - platform: state
+    entity_id: "{{ entity_target.entity_id | list }}"
+    to: "on"
+    id: manual_control_trigger
   - platform: state
     entity_id: !input motion_sensors
     to: "on"
     id: motion_trigger
-  - platform: state
-    entity_id: !input entity_target
-    id: manual_control_trigger
-    not_from:
-      - "unknown"
-      - "unavailable"
 
 variables:
   use_custom_settings: !input use_custom_settings
@@ -133,6 +133,7 @@ variables:
   entity_target: !input entity_target
 
 condition:
+  # This condition block applies to the motion trigger.
   - condition: trigger
     id: motion_trigger
   - condition: state
@@ -182,6 +183,8 @@ condition:
 
 action:
   - choose:
+      # This block runs if the manual control trigger fired.
+      # It checks if the change was NOT from this automation.
       - conditions:
           - condition: trigger
             id: manual_control_trigger
@@ -191,6 +194,7 @@ action:
           - service: input_boolean.turn_on
             target:
               entity_id: !input manual_override_helper
+    # This block runs if the motion trigger fired.
     default:
       - service: input_boolean.turn_off
         target:
@@ -200,17 +204,17 @@ action:
               - condition: template
                 value_template: "{{ use_custom_settings }}"
             sequence:
+              # Turn on lights with custom settings
               - service: light.turn_on
                 target: !input entity_target
                 data:
                   brightness: !input brightness
                   rgb_color: !input color
-              # This block handles switches when custom settings are used
-              - condition: template
-                value_template: "{{ 'switch.' in (entity_target.entity_id | first) }}"
+              # Turn on switches (they ignore the data block)
               - service: switch.turn_on
                 target: !input entity_target
         default:
+          # Turn on lights/switches with default settings
           - service: light.turn_on
             target: !input entity_target
       - wait_for_trigger:
