@@ -104,15 +104,6 @@ blueprint:
       selector:
         entity:
           domain: input_boolean
-    manual_override_reset_time:
-      name: Manual Override Reset Time
-      description: Time to reset the manual override after it has been activated.
-      default: 300
-      selector:
-        number:
-          min: 60
-          max: 3600
-          unit_of_measurement: seconds
 
 mode: restart
 max_exceeded: silent
