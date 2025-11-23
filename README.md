@@ -8,22 +8,6 @@ This repository contains multiple blueprints and other files.
 
 **reset_overrides.yaml** is a very simple blueprint that will turn your manual overrides off at sunset and whenever Home Assistant restarts
 
-
-It is based on this blueprint:
-https://github.com/iainsmacleod/Home-Assistant-Blueprints
-
-
-## Features of main blueprint
-
-- Control lights based on motion detection from one or more sensors
-- Optional custom brightness and color settings
-- Disabling sensors (vacation mode, sleep mode...)
-- Support for (external) manual overrides per light. 
-- Sun position awareness with configurable offset (day/night conditions)
-- Configurable wait time after motion stops
-
-##
-
 ## Installation
 
 You can add this blueprint to your Home Assistant instance by:
@@ -32,16 +16,28 @@ You can add this blueprint to your Home Assistant instance by:
 2. Click the **Import Blueprint** button
 3. Paste the URL of this repository and click **Preview**
 4. Click **Import Blueprint**
+It is based on this blueprint:
+https://github.com/iainsmacleod/Home-Assistant-Blueprints
 
-## Configuration Options
+## advanced_motion_automation.yaml
 
-### Required Settings
+### Features
+- Control lights based on motion detection from one or more sensors
+- Optional custom brightness and color settings
+- Disabling sensors (vacation mode, sleep mode...)
+- Support for (external) manual overrides per light. 
+- Sun position awareness with configurable offset (day/night conditions)
+- Configurable wait time after motion stops
+
+### Configuration Options
+
+#### Required Settings
 
 - **Motion Sensors**: One or more motion sensors that will trigger the lights
 - **Lights and Switches**: One or more lights to be controlled by the automation
 - **Wait Time**: Duration to keep lights on after motion stops (default: 60 seconds)
 
-### Optional Settings
+#### Optional Settings
 
 - **Use Custom Brightness and Color**: Toggle to enable custom light settings
 - **Brightness**: Light brightness level (0-255)
@@ -49,21 +45,21 @@ You can add this blueprint to your Home Assistant instance by:
 - **Manual Override Helper**: You can provide a binary sensor here to indicate whether the light(s) have been controlled manually by you. If so, the automation will not trigger
 - **Disable sensors**: You can provide one or more binary sensors here that will prevent the automation from controlling your lights. Sleep mode, vacation mode...
 
-### Conditional Controls
+#### Conditional Controls
 
 - **Sun Condition**: Option to activate only during day, night, or regardless of sun position
 - **Sunrise Offset**: Time offset from sunrise in HH:MM format. Positive number, it will keep running after sunrise (default 1h)
 - **Sunrise Offset**: Time offset from sunset in HH:MM format. Negative number, it will start running before sunset (default -1h)
 
 
-## How It Works
+### How It Works
 
 1. When motion is detected, the blueprint checks all configured conditions
 2. If conditions are met and no disabling sensors are on, lights turn on with either default or custom settings
 3. When motion stops, the blueprint waits for the configured time
 4. After the wait period, lights are turned off
 
-## Advanced Functionality
+### Advanced Functionality
 
 The blueprint includes several advanced features:
 
@@ -72,18 +68,20 @@ The blueprint includes several advanced features:
 - **Template Conditions** - Uses templating for flexible condition evaluation
 - **Sun Position with Offset** - Allows fine-tuning of day/night detection
 
-## Example Use Cases
+## Manual_overrides.yaml
 
-- **Hallway Lighting**: Turn on hallway lights when motion is detected, but only at night
-- **Bathroom Lights**: Activate with custom brightness based on time of day
-- **Kitchen Under-cabinet Lighting**: Turn on when motion is detected but only if the main kitchen light is off
-- **Outdoor Pathway Lights**: Activate only after sunset with a specific color and brightness
+### Features 
+- Block your automation from triggering lights if you controlled them manually.
+- Automatic control is restored when controlling your light manually a second time.
+- You can set this up per room, or for your whole installation. You will need to create one toggle helper *per override*.
 
-## Troubleshooting
+### Configuration
+- **Lights to monitor**: Which lights should be checked? Can be any number
+- **Manual Override Helper**: Which is your override toggle? This needs to be the same as in the main blueprint!
 
-If your automation isn't working as expected:
+## Reset_overrides.yaml
+This simply resets your manual overrides at night (when you usually want the automation to start controlling your lights) or when Home Assistant restarts, to avoid unexpected behaviour. 
 
-- Check that your motion sensors are correctly reporting motion
-- Verify that any conditional entities have the expected states
-- Ensure your sun offset format is correct (HH:MM)
-- Check that blocking entities aren't preventing activation
+### Configuration 
+- **Input Booleans to toggle**: All the helpers you want to reset. Usually all your overrides
+- **Sunset Offset**: When is this supposed to run in the evening? Should be aligned with the value in your main automation
