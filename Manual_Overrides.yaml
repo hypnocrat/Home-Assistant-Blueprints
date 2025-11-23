@@ -43,19 +43,32 @@ variables:
   reset_delay_minutes: !input reset_delay
 
 action:
+  # --- DEBUGGING STEP: Log what triggered the automation ---
+  - service: system_log.write
+    data:
+      message: >
+        Override Debug: Triggered by {{ trigger.to_state.entity_id }}.
+        Context Parent ID: {{ state_attr(trigger.to_state.entity_id, 'context')['parent_id'] | default('NOT_FOUND') }}
+      level: info
+
   - choose:
       # --- PATH 1: Check if ANY of the triggering lights were changed MANUALLY ---
       - conditions:
           - condition: template
             value_template: >
-              {# trigger.to_state.entity_id is a list when multiple entities match. #}
-              {% for trigger_entity_id in trigger.to_state.entity_id %}
-                {# Check if the context parent_id is none, indicating a manual change #}
-                {% if state_attr(trigger_entity_id, 'context')['parent_id'] is none %}
-                  {{ true }}
-                {% endif %}
-              {% endfor %}
+              {# Use a more robust check to avoid errors #}
+              {% set context_data = state_attr(trigger.to_state.entity_id, 'context') %}
+              {% if context_data and context_data['parent_id'] is none %}
+                {{ true }}
+              {% else %}
+                {{ false }}
+              {% endif %}
         sequence:
+          # --- DEBUGGING STEP: Log that manual control was detected ---
+          - service: system_log.write
+            data:
+              message: "Override Debug: Manual control detected. Activating override."
+              level: info
           - service: input_boolean.turn_on
             target:
               entity_id: !input manual_override_helper
@@ -63,6 +76,11 @@ action:
 
     # --- PATH 2: The change was AUTOMATIC (or no manual change was detected) ---
     default:
+      # --- DEBUGGING STEP: Log that automatic control was detected ---
+      - service: system_log.write
+        data:
+          message: "Override Debug: Automatic control detected. Checking for reset timer."
+          level: info
       # Only proceed if the override is currently active
       - condition: state
         entity_id: !input manual_override_helper
