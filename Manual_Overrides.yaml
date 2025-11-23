@@ -13,7 +13,6 @@ blueprint:
         target:
           entity:
             domain: light
-            multiple: true # This allows selecting multiple entities
     manual_override_helper:
       name: Manual Override Helper
       description: The input_boolean that represents the manual override state.
@@ -23,10 +22,10 @@ blueprint:
     reset_delay:
       name: Reset Delay
       description: The time to wait before automatically resetting the override after an automation runs.
-      default: 5
+      default: 10
       selector:
         number:
-          min: 1
+          min: 0
           max: 60
           unit_of_measurement: minutes
 
