@@ -1,19 +1,26 @@
-# Motion-activated Light Blueprint for Home Assistant
+# Motion-activated Light Blueprint and helpers
 
-This repository contains a Home Assistant automation blueprint that provides advanced motion-activated lighting control with multiple conditions and customization options.
+This repository contains multiple blueprints and other files.
+
+**advanced_motion_automation.yaml** is he main blueprint for controlling your lights. It controls the lights. 
+**Manual_overrides.yaml** provides functionality for setting up manual overrides, i.e. motion not toggling your lights if you controlled it manually. This is optional and can be configured per room or for your whole setup at once. 
+**reset_overrides.yaml** is a very simple blueprint that will turn your manual overrides off at sunset and whenever Home Assistant restarts
+
 
 It is based on this blueprint:
 https://github.com/iainsmacleod/Home-Assistant-Blueprints
 
 
-## Features
+## Features of main blueprint
 
 - Control lights based on motion detection from one or more sensors
 - Optional custom brightness and color settings
 - Disabling sensors (vacation mode, sleep mode...)
-- Support for (external) manual overrides per light. (see other files)
+- Support for (external) manual overrides per light. 
 - Sun position awareness with configurable offset (day/night conditions)
 - Configurable wait time after motion stops
+
+##
 
 ## Installation
 
