@@ -2,19 +2,17 @@
 
 This repository contains a Home Assistant automation blueprint that provides advanced motion-activated lighting control with multiple conditions and customization options.
 
+It is based on this blueprint:
 https://github.com/iainsmacleod/Home-Assistant-Blueprints
 
-If you like this blueprint and want to support me, feel free to leave a donation.
-
-<a href="https://www.buymeacoffee.com/iainmacleod" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## Features
 
 - Control lights based on motion detection from one or more sensors
 - Optional custom brightness and color settings
-- Conditional activation based on the state of another entity
+- Disabling sensors (vacation mode, sleep mode...)
+- Support for (external) manual overrides per light. (see other files)
 - Sun position awareness with configurable offset (day/night conditions)
-- Blocking functionality to prevent activation in certain scenarios
 - Configurable wait time after motion stops
 
 ## Installation
@@ -31,28 +29,28 @@ You can add this blueprint to your Home Assistant instance by:
 ### Required Settings
 
 - **Motion Sensors**: One or more motion sensors that will trigger the lights
-- **Lights**: One or more lights to be controlled by the automation
-- **Wait Time**: Duration to keep lights on after motion stops (default: 120 seconds)
+- **Lights and Switches**: One or more lights to be controlled by the automation
+- **Wait Time**: Duration to keep lights on after motion stops (default: 60 seconds)
 
 ### Optional Settings
 
 - **Use Custom Brightness and Color**: Toggle to enable custom light settings
 - **Brightness**: Light brightness level (0-255)
 - **Color**: RGB color value for the lights
+- **Manual Override Helper**: You can provide a binary sensor here to indicate whether the light(s) have been controlled manually by you. If so, the automation will not trigger
+- **Disable sensors**: You can provide one or more binary sensors here that will prevent the automation from controlling your lights. Sleep mode, vacation mode...
 
 ### Conditional Controls
 
-- **Condition Entity**: Optional entity whose state will be checked before activating lights
-- **Allowed States**: Comma-separated list of states for the condition entity
 - **Sun Condition**: Option to activate only during day, night, or regardless of sun position
-- **Sun Offset**: Time offset from sunrise/sunset in HH:MM format
-- **Blocking Entity**: Entity that can prevent the automation from running
-- **Blocking States**: States of the blocking entity that will prevent activation
+- **Sunrise Offset**: Time offset from sunrise in HH:MM format. Positive number, it will keep running after sunrise (default 1h)
+- **Sunrise Offset**: Time offset from sunset in HH:MM format. Negative number, it will start running before sunset (default -1h)
+
 
 ## How It Works
 
 1. When motion is detected, the blueprint checks all configured conditions
-2. If conditions are met, lights turn on with either default or custom settings
+2. If conditions are met and no disabling sensors are on, lights turn on with either default or custom settings
 3. When motion stops, the blueprint waits for the configured time
 4. After the wait period, lights are turned off
 
@@ -61,7 +59,7 @@ You can add this blueprint to your Home Assistant instance by:
 The blueprint includes several advanced features:
 
 - **Mode: restart** - Ensures the automation restarts if triggered again during execution
-- **Multiple Condition Checks** - Evaluates entity states, sun position, and blocking conditions
+- **Multiple Condition Checks** - Evaluates entity states, sun position, and disabling sensors
 - **Template Conditions** - Uses templating for flexible condition evaluation
 - **Sun Position with Offset** - Allows fine-tuning of day/night detection
 
