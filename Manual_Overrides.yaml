@@ -48,21 +48,15 @@ action:
     data:
       message: >
         Override Debug: Triggered by {{ trigger.to_state.entity_id }}.
-        Context Parent ID: {{ state_attr(trigger.to_state.entity_id, 'context')['parent_id'] | default('NOT_FOUND') }}
+        Context Parent ID: {{ trigger.to_state.context.parent_id | default('NOT_FOUND') }}
       level: info
 
   - choose:
       # --- PATH 1: Check if ANY of the triggering lights were changed MANUALLY ---
       - conditions:
           - condition: template
-            value_template: >
-              {# Use a more robust check to avoid errors #}
-              {% set context_data = state_attr(trigger.to_state.entity_id, 'context') %}
-              {% if context_data and context_data['parent_id'] is none %}
-                {{ true }}
-              {% else %}
-                {{ false }}
-              {% endif %}
+            # --- THIS IS THE CORRECTED TEMPLATE ---
+            value_template: "{{ trigger.to_state.context.parent_id is none }}"
         sequence:
           # --- DEBUGGING STEP: Log that manual control was detected ---
           - service: system_log.write
