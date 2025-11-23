@@ -1,6 +1,6 @@
 blueprint:
   name: Motion-activated Light with Automatic Manual Override
-  description: Turn on lights when motion is detected. If the light is controlled manually, a manual override is automatically enabled to prevent the automation from interfering. Includes separate sunrise/sunset offsets and other conditions.
+  description: Turn on lights when motion is detected. Optional: Only during night-/daytime, disable sensors, manual override (requires additional automation)
   domain: automation
   input:
     motion_sensors:
