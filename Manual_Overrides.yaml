@@ -1,0 +1,83 @@
+blueprint:
+  name: Smart Manual Override for Lights
+  description: >
+    Detects manual control of selected lights to activate a manual override helper.
+    If an automation changes the lights while the override is active, a timer will
+    automatically reset the override after a specified duration.
+  domain: automation
+  input:
+    target_lights:
+      name: Lights to Monitor
+      description: Select one or more lights, or an entire area, that this override should monitor.
+      selector:
+        target:
+          entity:
+            domain: light
+            multiple: true # This allows selecting multiple entities
+    manual_override_helper:
+      name: Manual Override Helper
+      description: The input_boolean that represents the manual override state.
+      selector:
+        entity:
+          domain: input_boolean
+    reset_delay:
+      name: Reset Delay
+      description: The time to wait before automatically resetting the override after an automation runs.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutes
+
+mode: single
+
+trigger:
+  - platform: state
+    entity_id: !input target_lights
+    # This ensures we only trigger when the state actually changes (e.g., on->off)
+    not_from:
+      - "unknown"
+      - "unavailable"
+
+variables:
+  # Get the list of entity IDs from the target selector
+  target_light_ids: !input target_lights
+  # Get the entity ID of the override helper
+  override_helper: !input manual_override_helper
+  # Get the reset delay in minutes
+  reset_delay_minutes: !input reset_delay
+
+action:
+  - choose:
+      # --- PATH 1: Check if ANY of the triggering lights were changed MANUALLY ---
+      - conditions:
+          - condition: template
+            value_template: >
+              {# trigger.to_state.entity_id is a list when multiple entities match. #}
+              {# We iterate through it to check the context of each changed light. #}
+              {% for trigger_entity_id in trigger.to_state.entity_id %}
+                {# Check if the context parent_id is none, indicating a manual change #}
+                {% if state_attr(trigger_entity_id, 'context')['parent_id'] is none %}
+                  {{ true }}
+                {% endif %}
+              {% endfor %}
+        sequence:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input manual_override_helper
+          - stop: "Manual control detected. Override activated."
+
+    # --- PATH 2: The change was AUTOMATIC (or no manual change was detected) ---
+    default:
+      # Only proceed if the override is currently active
+      - condition: state
+        entity_id: !input manual_override_helper
+        state: "on"
+      # Wait for the specified delay
+      - delay:
+          minutes: !input reset_delay
+      # Turn the override off, allowing automations to resume control
+      - service: input_boolean.turn_off
+        target:
+          entity_id: !input manual_override_helper
