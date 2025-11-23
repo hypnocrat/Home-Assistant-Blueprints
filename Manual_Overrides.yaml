@@ -8,11 +8,11 @@ blueprint:
   input:
     target_lights:
       name: Lights to Monitor
-      description: Select one or more lights, or an entire area, that this override should monitor.
+      description: Select one or more lights that this override should monitor.
       selector:
-        target:
-          entity:
-            domain: light
+        entity:
+          domain: light
+          multiple: true # This is the correct place for 'multiple'
     manual_override_helper:
       name: Manual Override Helper
       description: The input_boolean that represents the manual override state.
@@ -22,10 +22,10 @@ blueprint:
     reset_delay:
       name: Reset Delay
       description: The time to wait before automatically resetting the override after an automation runs.
-      default: 10
+      default: 5
       selector:
         number:
-          min: 0
+          min: 1
           max: 60
           unit_of_measurement: minutes
 
@@ -33,18 +33,13 @@ mode: single
 
 trigger:
   - platform: state
-    entity_id: !input target_lights
-    # This ensures we only trigger when the state actually changes (e.g., on->off)
+    entity_id: !input target_lights # This now correctly references the entity selector
     not_from:
       - "unknown"
       - "unavailable"
 
 variables:
-  # Get the list of entity IDs from the target selector
-  target_light_ids: !input target_lights
-  # Get the entity ID of the override helper
   override_helper: !input manual_override_helper
-  # Get the reset delay in minutes
   reset_delay_minutes: !input reset_delay
 
 action:
@@ -54,7 +49,6 @@ action:
           - condition: template
             value_template: >
               {# trigger.to_state.entity_id is a list when multiple entities match. #}
-              {# We iterate through it to check the context of each changed light. #}
               {% for trigger_entity_id in trigger.to_state.entity_id %}
                 {# Check if the context parent_id is none, indicating a manual change #}
                 {% if state_attr(trigger_entity_id, 'context')['parent_id'] is none %}
