@@ -2,8 +2,10 @@
 
 This repository contains multiple blueprints and other files.
 
-**advanced_motion_automation.yaml** is he main blueprint for controlling your lights. It controls the lights. 
+**advanced_motion_automation.yaml** is he main blueprint for controlling your lights. It controls the lights.  
+
 **Manual_overrides.yaml** provides functionality for setting up manual overrides, i.e. motion not toggling your lights if you controlled it manually. This is optional and can be configured per room or for your whole setup at once. 
+
 **reset_overrides.yaml** is a very simple blueprint that will turn your manual overrides off at sunset and whenever Home Assistant restarts
 
 
