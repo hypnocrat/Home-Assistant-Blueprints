@@ -8,11 +8,11 @@ blueprint:
   input:
     target_lights:
       name: Lights to Monitor
-      description: Select one or more lights, or an entire area, that this override should monitor.
+      description: Select one or more lights that this override should monitor.
       selector:
-        target:
-          entity:
-            domain: light
+        entity:
+          domain: light
+          multiple: true # Correctly placed as a sibling to 'domain'
     manual_override_helper:
       name: Manual Override Helper
       description: The input_boolean that represents the manual override state.
@@ -33,7 +33,7 @@ mode: single
 
 trigger:
   - platform: state
-    entity_id: !input target_lights
+    entity_id: !input target_lights # This now correctly receives a list of entity IDs
     not_from:
       - "unknown"
       - "unavailable"
