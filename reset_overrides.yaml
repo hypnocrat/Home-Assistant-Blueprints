@@ -15,7 +15,7 @@ blueprint:
     sunset_offset:
       name: Sunset Offset
       description: Offset from sunset in format 'HH:MM' (e.g., '01:00' or '-00:30')
-      default: "01:00"
+      default: "-01:00"
       selector:
         text:
 
