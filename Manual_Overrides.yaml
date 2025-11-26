@@ -3,6 +3,7 @@ blueprint:
   description: >
     Detects manual control of selected lights to activate a manual override helper.
     If the light is controlled manually again while the override is active, it will be deactivated.
+    Only triggers on the light being toggled off and on, not on changes in brightness or light temperature or colour.
   domain: automation
   input:
     target_lights:
@@ -34,6 +35,9 @@ action:
       - conditions:
           - condition: template
             value_template: "{{ trigger.to_state.context.parent_id is none }}"
+          - condition: template
+            value_template: >
+              {{ trigger.from_state.state != trigger.to_state.state }}
         sequence:
           - choose:
               # --- Sub-path 1a: Override is ON, so turn it OFF ---
