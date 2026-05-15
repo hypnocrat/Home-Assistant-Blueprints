@@ -66,9 +66,7 @@ blueprint:
       description: Set the color (in RGB format).
       default: [255, 255, 255]
       selector:
-        color:
-          # This is the proper syntax for RGB color in a blueprint
-          type: rgb
+        color_rgb: {}   # ✅ Correct syntax for blueprint RGB color
     sun_condition:
       name: Sun Condition (Optional)
       description: Select the sun condition to check.
