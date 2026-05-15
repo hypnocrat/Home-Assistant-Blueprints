@@ -1,6 +1,6 @@
 blueprint:
-  name: Motion-activated Light with Automatic Manual Override
-  description: "Turn on lights when motion is detected. Optional: Only during night- or daytime, disable sensors, manual override (with additional automation)"
+  name: Motion-activated Light with Optional Luminance Check
+  description: "Turn on lights when motion is detected if luminance is below a threshold. Optional: Night/day conditions, disable sensors, manual override."
   domain: automation
   input:
     motion_sensors:
@@ -22,6 +22,22 @@ blueprint:
             domain:
               - light
               - switch
+    luminance_sensor:
+      name: Luminance Sensor (Optional)
+      description: Only turn on lights if luminance is below this threshold.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+    luminance_threshold:
+      name: Luminance Threshold (lx)
+      description: Lights will turn on only if luminance is below this value.
+      default: 500
+      selector:
+        number:
+          min: 0
+          max: 10000
+          unit_of_measurement: lx
     no_motion_wait:
       name: Wait Time
       description: Time to leave the light on after last motion is detected.
@@ -36,7 +52,7 @@ blueprint:
       description: Enable to use custom brightness and color settings.
       default: false
       selector:
-        boolean:
+        boolean
     brightness:
       name: Brightness
       description: Set the brightness level (0-255).
@@ -50,7 +66,7 @@ blueprint:
       description: Set the color (in RGB format).
       default: [255, 255, 255]
       selector:
-        color_rgb:
+        color_rgb
     sun_condition:
       name: Sun Condition (Optional)
       description: Select the sun condition to check.
@@ -66,17 +82,17 @@ blueprint:
       description: Offset from sunrise in format 'HH:MM' (e.g., '01:00' or '-00:30')
       default: "01:00"
       selector:
-        text:
+        text
     sunset_offset:
       name: Sunset Offset (Optional)
       description: Offset from sunset in format 'HH:MM' (e.g., '01:00' or '-00:30')
       default: "-01:00"
       selector:
-        text:
+        text
     manual_override_helper:
       name: Manual Override Helper (Optional)
-      description: Select an input_boolean helper. This will be automatically turned on when the light is controlled manually to disable automation control.
-      default:
+      description: Select an input_boolean helper to disable automation when turned on.
+      default: ""
       selector:
         entity:
           domain: input_boolean
@@ -106,6 +122,8 @@ variables:
   manual_override_helper: !input manual_override_helper
   entity_target: !input entity_target
   disable_sensors: !input disable_sensors
+  luminance_sensor: !input luminance_sensor
+  luminance_threshold: !input luminance_threshold
 
 condition:
   # 1 — Optional disable sensors
@@ -113,7 +131,7 @@ condition:
     value_template: "{{ disable_sensors | length == 0 or disable_sensors | select('is_state', 'on') | list | length == 0 }}"
   # 2 — Optional manual override
   - condition: template
-    value_template: "{{ manual_override_helper == None or manual_override_helper == '' or states(manual_override_helper) == 'off' }}"
+    value_template: "{{ manual_override_helper in [None, ''] or states(manual_override_helper) == 'off' }}"
   # 3 — Sun condition
   - condition: or
     conditions:
@@ -142,30 +160,37 @@ condition:
                 before_offset: !input sunrise_offset
 
 action:
-  # Turn on the lights.
+  # Turn on lights (optional luminance check + custom settings)
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ use_custom_settings }}"
+            value_template: >
+              {% if luminance_sensor not in [None, ''] %}
+                {% set lux = states(luminance_sensor) | float(0) %}
+                {{ lux < luminance_threshold }}
+              {% else %}
+                true
+              {% endif %}
         sequence:
           - service: light.turn_on
             target: !input entity_target
-            data:
-              brightness: !input brightness
-              rgb_color: !input color
-          - service: switch.turn_on
-            target: !input entity_target
-    default:
-      - service: light.turn_on
-        target: !input entity_target
+            data: >
+              {% if use_custom_settings %}
+              {
+                "brightness": {{ brightness }},
+                "rgb_color": {{ color }}
+              }
+              {% else %}
+              {}
+              {% endif %}
 
-  # Wait for motion to stop.
+  # Wait for motion to stop
   - wait_for_trigger:
       platform: state
       entity_id: !input motion_sensors
       to: "off"
   - delay: !input no_motion_wait
 
-  # Turn off the lights.
+  # Turn off lights (always)
   - service: light.turn_off
     target: !input entity_target
