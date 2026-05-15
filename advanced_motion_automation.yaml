@@ -52,7 +52,7 @@ blueprint:
       description: Enable to use custom brightness and color settings.
       default: false
       selector:
-        boolean
+        boolean: {}
     brightness:
       name: Brightness
       description: Set the brightness level (0-255).
@@ -66,7 +66,9 @@ blueprint:
       description: Set the color (in RGB format).
       default: [255, 255, 255]
       selector:
-        color_rgb
+        color:
+          # This is the proper syntax for RGB color in a blueprint
+          type: rgb
     sun_condition:
       name: Sun Condition (Optional)
       description: Select the sun condition to check.
@@ -82,13 +84,13 @@ blueprint:
       description: Offset from sunrise in format 'HH:MM' (e.g., '01:00' or '-00:30')
       default: "01:00"
       selector:
-        text
+        text: {}
     sunset_offset:
       name: Sunset Offset (Optional)
       description: Offset from sunset in format 'HH:MM' (e.g., '01:00' or '-00:30')
       default: "-01:00"
       selector:
-        text
+        text: {}
     manual_override_helper:
       name: Manual Override Helper (Optional)
       description: Select an input_boolean helper to disable automation when turned on.
