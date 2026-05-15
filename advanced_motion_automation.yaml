@@ -29,6 +29,8 @@ blueprint:
       selector:
         entity:
           domain: sensor
+          device_class:
+           - illuminance
     luminance_threshold:
       name: Luminance Threshold (lx)
       description: Lights will turn on only if luminance is below this value.
